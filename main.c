@@ -2,14 +2,12 @@
 #include <stdlib.h>
 #include <raylib.h>
 #include <time.h>
+#include <math.h>
 
-#define X_BALLS        200
+#define X_BALLS        10
 #define MAX_VELOCITY   300
-#define RADIUS         3
+#define RADIUS         20
 
-int get_random_sign() {
-    return (rand() % 2 == 0) ? -1 : 1;
-}
 
 typedef struct {
     int location_x[X_BALLS];
@@ -20,6 +18,33 @@ typedef struct {
     int mass[X_BALLS];
 } List_of_Balls_SoA;
 
+int get_random_sign() {
+    return (rand() % 2 == 0) ? -1 : 1;
+}
+
+int distance(List_of_Balls_SoA* balls, int index_1, int index_2) {
+    int x1 = balls->location_x[index_1];
+    int y1 = balls->location_y[index_1];
+    int x2 = balls->location_x[index_2];
+    int y2 = balls->location_y[index_2];
+
+    int dist = (int)sqrt((x2 - x1)*(x2 - x1) + (y2 - y1)*(y2 - y1));
+    return dist;
+}
+
+void collision(List_of_Balls_SoA* balls, int index_1, int index_2) {
+    int vx1 = balls->velocity_x[index_1];
+    int vy1 = balls->velocity_y[index_1];
+    int m1 = balls->mass[index_1];
+    int vx2 = balls->velocity_x[index_2];
+    int vy2 = balls->velocity_y[index_2];
+    int m2 = balls->mass[index_2];
+
+    balls->velocity_x[index_1] = (vx1 * (m1 - m2) + 2 * m2 * vx2) / (m1 + m2);
+    balls->velocity_y[index_1] = (vy1 * (m1 - m2) + 2 * m2 * vy2) / (m1 + m2);
+    balls->velocity_x[index_2] = (vx2 * (m2 - m1) + 2 * m1 * vx1) / (m1 + m2);
+    balls->velocity_y[index_2] = (vy2 * (m2 - m1) + 2 * m1 * vy1) / (m1 + m2);
+}
 
 int main() {
     const int screenWidth = 800;
@@ -27,9 +52,8 @@ int main() {
     List_of_Balls_SoA balls;
 
     srand(time(NULL));
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - basic window");
-    SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
-    
+    InitWindow(screenWidth, screenHeight, "balls");
+    SetTargetFPS(60);            
     // init X amount of balls
     for (int i = 0; i < X_BALLS; i++) 
     {
@@ -40,8 +64,7 @@ int main() {
         balls.radius[i] = RADIUS;
         balls.mass[i] = 5;
     }
-
-    while (!WindowShouldClose())    // Detect window close button or ESC key
+    while (!WindowShouldClose())  
     {
         BeginDrawing();
         ClearBackground(RAYWHITE);
@@ -68,6 +91,14 @@ int main() {
                )
             {
                 balls.velocity_y[i] *= -1;
+            }
+            for (int j = 0; j < X_BALLS; j++) 
+            {
+                if (i == j) break;
+                if (distance(&balls, i, j) < (balls.radius[i] + balls.radius[j])) 
+                {
+                    collision(&balls, i, j);
+                }
             }
             // update location
             balls.location_x[i] += (int)(balls.velocity_x[i] * (1.0/60.0));
